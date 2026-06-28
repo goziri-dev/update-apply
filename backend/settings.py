@@ -11,6 +11,7 @@ class _Settings(BaseSettings):
     DB_URL: PostgresDsn = Field(alias="DB_URL")
     SERVER_HOST: str = Field(alias="SERVER_HOST", default="127.0.0.1")
     SERVER_PORT: int = 8000
+    TECHMAP_API_KEY: str = Field(alias="TECHMAP_API_KEY", default="")
 
     model_config = SettingsConfigDict(extra="forbid", env_file=".env")
 

@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/user")
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_user(payload: CreateUserRequest, db: AsyncSession = Depends(get_session)):
+async def create_user(payload: CreateUserRequest, user_repo: UserRepository = Depends(UserRepository), db: AsyncSession = Depends(get_session)):
     log_error = lambda error: logger.exception(f"Failed to create user: {error}")
     try:
-        user_repo = UserRepository(db)
+        user_repo.set_db(db)
         return await user_repo.create(User(**payload.model_dump()))
     except ValueError as e:
         log_error(e)
@@ -27,10 +27,10 @@ async def create_user(payload: CreateUserRequest, db: AsyncSession = Depends(get
 
 
 @router.get("/{user_id}")
-async def get_user(user_id: str, db: AsyncSession = Depends(get_session)):
+async def get_user(user_id: str, user_repo: UserRepository = Depends(UserRepository), db: AsyncSession = Depends(get_session)):
     log_error = lambda error: logger.exception(f"Failed to delete user: {error}")
     try:
-        user_repo = UserRepository(db)
+        user_repo.set_db(db)
         return await user_repo.read(user_id)
     except ValueError as e:
         log_error(e)

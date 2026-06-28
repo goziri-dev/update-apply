@@ -1,10 +1,12 @@
 from datetime import datetime
-from typing import Literal
 
-from sqlmodel import SQLModel, Field
+from sqlalchemy import ARRAY, String
+from sqlmodel import Column, Field, SQLModel
 
 
 class JobPost(SQLModel, table=True):
+    id: str | None = Field(default=None, primary_key=True)
+
     # Source
     portal: str
     source_url: str | None = None
@@ -47,11 +49,11 @@ class JobPost(SQLModel, table=True):
     timezone_offset: int | None = None
 
     # Classification
-    work_place: list[Literal["onsite", "hybrid", "remote"]] = Field(default_factory=list)
-    work_type: list[str] = Field(default_factory=list)
-    contract_type: list[str] = Field(default_factory=list)
-    career_level: list[str] = Field(default_factory=list)
-    skills: list[str] = Field(default_factory=list)
+    work_place: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    work_type: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    contract_type: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    career_level: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    skills: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
 
     # Salary
     min_salary: int | None = None

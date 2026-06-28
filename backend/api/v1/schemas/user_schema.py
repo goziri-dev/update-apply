@@ -3,10 +3,14 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class CreateUserRequest(BaseModel):
+class UserRequest(BaseModel):
     id: str
     email: str
     first_name: str
     last_name: str
     last_signed_in_at: datetime
-    phone_number: str
+
+
+class CreateUserRequest(UserRequest):
+    ...
+

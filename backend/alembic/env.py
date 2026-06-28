@@ -11,6 +11,7 @@ from sqlmodel import SQLModel
 
 # Import all models so they are registered in SQLModel.metadata
 from domain.models.user import User
+from domain.models.user_job_profile import UserJobProfile
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
