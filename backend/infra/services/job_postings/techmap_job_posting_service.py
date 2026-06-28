@@ -144,10 +144,14 @@ class TechmapJobPostingService(BaseJobPostingService):
             timezone=raw.get("timezone"),
             timezone_offset=raw.get("timezoneOffset"),
             # Classification
-            work_place=[wp.lower() for wp in (raw.get("workPlace") or [])],
-            work_type=[wt.lower() for wt in (raw.get("workType") or [])],
-            contract_type=[ct.lower() for ct in (raw.get("contractType") or [])],
-            career_level=[cl.lower() for cl in (raw.get("careerLevel") or [])],
+            work_place=[  # type: ignore[arg-type]
+                self._WORK_PLACE_MAP.get(wp.lower(), wp.lower())
+                for wp in (raw.get("workPlace") or [])
+                if wp is not None
+            ],
+            work_type=[wt.lower() for wt in (raw.get("workType") or []) if wt is not None],  # type: ignore[arg-type]
+            contract_type=[ct.lower() for ct in (raw.get("contractType") or []) if ct is not None],  # type: ignore[arg-type]
+            career_level=[cl.lower() for cl in (raw.get("careerLevel") or []) if cl is not None],  # type: ignore[arg-type]
             skills=raw.get("skills") or [],
             # Salary
             min_salary=raw.get("minSalary"),

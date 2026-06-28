@@ -1,8 +1,11 @@
+from abc import ABC, abstractmethod
+
+from pydantic import BaseModel
 from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class BaseRepository[M: SQLModel]:
+class BaseRepository[M: SQLModel, PayloadT: BaseModel](ABC):
     def __init__(self, model_class: type, db: AsyncSession) -> None:
         self._db: AsyncSession | None = None
         self._model_class = model_class
@@ -24,22 +27,15 @@ class BaseRepository[M: SQLModel]:
         if not instance:
             raise self._instance_not_found_error
         return instance
-        
-    async def update(self, model: M) -> M:
-        if not self._db:
-            raise self._no_db_set_error
-        model_id = getattr(model, "id", None)
-        if model_id is None:
-            raise ValueError("The model has id of None or is missing an 'id' attribute")
-        instance = await self._db.get(self._model_class, model_id)
-        if not instance:
-            raise self._instance_not_found_error
-        update_data = model.model_dump(exclude={"id"}, exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(instance, field, value)
-        await self._db.flush()
-        await self._db.refresh(instance)
-        return instance
+
+    @abstractmethod
+    async def update(self, model: M, payload: PayloadT) -> M:
+        """Apply *payload* onto the tracked *model* instance and persist.
+
+        Each concrete repository receives the domain-specific Pydantic schema
+        it needs and is responsible for field mapping and persistence.
+        """
+        ...
 
     async def delete(self, id: str) -> dict[str, bool]:
         if not self._db:

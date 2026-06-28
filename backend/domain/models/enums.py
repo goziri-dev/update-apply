@@ -55,3 +55,6 @@ class Occupation(StrEnum):
     EDITOR = "editor"
     INSTRUCTIONAL_DESIGNER = "instructional designer"
     TECHNICAL_WRITER = "technical writer"
+
+    # ── Other ────────────────────────────────────────────────────────────
+    STUDENT = "student"

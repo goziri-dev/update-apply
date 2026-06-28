@@ -7,6 +7,8 @@ from .user import User
 class UserJobProfile(SQLModel, table=True):
     id: str | None = Field(default=None, primary_key=True)
     user_id: str = Field(foreign_key="user.id")
+    first_name: str | None = None
+    last_name: str | None = None
     current_occupation: Occupation
     desired_occupation: Occupation
     years_of_experience: int | None = None

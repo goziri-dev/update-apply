@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from domain.models.enums import RemotePreference
 from domain.repositories.user_profile_repository import UserProfileRepository
@@ -26,12 +26,33 @@ class PersonalizedSearchInput:
     user_id: str
     page: int = 1
     page_size: int = 25
-    filters: SearchFilters = SearchFilters()
+    filters: SearchFilters = field(default_factory=SearchFilters)
+
+
+@dataclass
+class PersonalizedSearchResult:
+    """Augmented result that pairs the client-side filtered job set with
+    the original broad API response from the job posting service.
+
+    Attributes:
+        filtered_jobs:         Jobs that match *all* active user filters.
+        filtered_total_count:  Number of jobs in the filtered set.
+        page:                  Current page number.
+        has_more:              Whether the *broad* API response has more pages.
+        broad_result:          The original SearchResult from the posting
+                               service (keywords-only query), if available.
+    """
+    filtered_jobs: list
+    filtered_total_count: int
+    page: int = 1
+    has_more: bool = False
+    broad_result: SearchResult | None = None
 
 
 class PersonalizedJobSearchService:
-    """Builds a SearchParams from the user's profile applying only the
-    filters the user explicitly opted into."""
+    """Fetches a broad result set from the job posting API (keywords only)
+    then applies the user's opted-in filters in-memory — one API call
+    regardless of how many filters are active."""
 
     def __init__(
         self,
@@ -41,25 +62,53 @@ class PersonalizedJobSearchService:
         self._profile_repo = profile_repo
         self._posting_service = posting_service
 
-    async def search(self, input: PersonalizedSearchInput) -> SearchResult:
+    async def search(self, input: PersonalizedSearchInput) -> PersonalizedSearchResult:
         profile = await self._profile_repo.read(input.user_id)
 
-        params = SearchParams(
+        # ── 1. Broad search: keywords only (single API call) ──
+        broad = self._posting_service.search(SearchParams(
             keywords=[profile.desired_occupation.value],
             page=input.page,
             page_size=input.page_size,
-            # Only include what the user opted into
-            city=profile.desired_location_city if input.filters.location else None,
-            country_code=profile.desired_location_country if input.filters.location else None,
-            occupation=profile.desired_occupation.value if input.filters.occupation else None,
-            work_place=(
-                [profile.remote_preference.value]
-                if input.filters.remote
-                and profile.remote_preference
-                and profile.remote_preference != RemotePreference.ANY
-                else None
-            ),
-            min_salary=profile.salary_min if input.filters.salary else None,
-        )
+        ))
 
-        return self._posting_service.search(params)
+        # ── 2. Client-side filtering ──
+        filtered = list(broad.jobs)
+
+        if input.filters.location:
+            city = profile.desired_location_city
+            country = profile.desired_location_country
+            filtered = [
+                j for j in filtered
+                if (not city or (j.city or "").casefold() == city.casefold())
+                and (not country or (j.country_code or "").casefold() == country.casefold())
+            ]
+
+        if input.filters.occupation:
+            occ = profile.desired_occupation.value
+            filtered = [
+                j for j in filtered
+                if (j.occupation or "").casefold() == occ.casefold()
+            ]
+
+        if input.filters.remote and profile.remote_preference != RemotePreference.ANY:
+            pref = profile.remote_preference.value
+            filtered = [
+                j for j in filtered
+                if any(pref == (wp or "").casefold() for wp in j.work_place)
+            ]
+
+        if input.filters.salary and profile.salary_min is not None:
+            min_sal = profile.salary_min
+            filtered = [
+                j for j in filtered
+                if j.min_salary is not None and j.min_salary >= min_sal
+            ]
+
+        return PersonalizedSearchResult(
+            filtered_jobs=filtered,
+            filtered_total_count=len(filtered),
+            page=input.page,
+            has_more=broad.has_more,
+            broad_result=broad,
+        )
